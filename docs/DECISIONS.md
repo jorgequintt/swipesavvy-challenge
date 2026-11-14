@@ -1,0 +1,1 @@
+* Preventing Overpay: Every transaction that changes money locks the order row first, so following duplicated transactions wait for the result of the previous transaction before executing, so CHECK conditions can execute with updated values.

@@ -10,7 +10,7 @@ function requireEnv(name: string) {
   return value;
 }
 
-const color = requireEnv('COLOR');
+const color = requireEnv('SERVER_COLOR');
 const pool = createPool(requireEnv('DATABASE_URL'));
 const version = process.env.APP_VERSION ?? 'dev';
 const port = Number(process.env.PORT ?? 3000);

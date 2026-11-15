@@ -2,14 +2,19 @@ import express, { type ErrorRequestHandler } from 'express';
 import type pg from 'pg';
 import { ordersRouter } from './routes/orders.js';
 import { ApiError } from './errors.js';
+import { paymentsRouter } from './routes/payments.js';
+import { Gateway } from './gateway.js';
+import { PaymentHooks } from './payments.js';
 
 export interface AppConfig {
   pool: pg.Pool;
   color: string;
   version: string;
+  gateway: Gateway;
+  paymentHooks?: PaymentHooks; // For tests
 }
 
-export function createApp({ pool, color, version }: AppConfig) {
+export function createApp({ pool, color, version, gateway, paymentHooks }: AppConfig) {
   const app = express();
   app.use(express.json());
 
@@ -30,6 +35,7 @@ export function createApp({ pool, color, version }: AppConfig) {
     res.json({ color, version });
   });
   api.use('/orders', ordersRouter(pool));
+  api.use('/orders/:orderId/payments', paymentsRouter(pool, gateway, paymentHooks))
   api.use((req, res) => {
     res.status(404).json({
       error: {
@@ -65,6 +71,14 @@ export function createApp({ pool, color, version }: AppConfig) {
             details: { constraint: err.constraint },
           },
         });
+    }
+
+    // lock_timeout triggered. The order stayed locked by another request for too long
+    if (err.code === '55P03') {
+      res.status(503).json({
+        error: { code: 'BUSY', message: 'Order is busy. Retry' },
+      });
+      return;
     }
 
     console.error(err);

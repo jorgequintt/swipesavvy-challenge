@@ -1,5 +1,6 @@
 import { createApp } from "./app.js";
 import { createPool } from "./db.js";
+import { FakeGateway } from "./gateway.js";
 
 function requireEnv(name: string) {
   const value = process.env[name];
@@ -15,7 +16,8 @@ const pool = createPool(requireEnv('DATABASE_URL'));
 const version = process.env.APP_VERSION ?? 'dev';
 const port = Number(process.env.PORT ?? 3000);
 
-const server = createApp({ pool, color, version }).listen(port, '0.0.0.0', () => {
+const gateway = new FakeGateway(Number(process.env.GATEWAY_LATENCY_MS ?? 300));
+const server = createApp({ pool, color, version, gateway }).listen(port, '0.0.0.0', () => {
   console.log(`[${color}] ${version} listening on port ${port}`);
 })
 

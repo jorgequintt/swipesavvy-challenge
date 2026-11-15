@@ -14,3 +14,6 @@ export const badRequest = (message: string, details?: Record<string, unknown>) =
 
 export const notFound = (rsrc: string) => new ApiError(404, 'NOT_FOUND', `${rsrc} not found`);
 
+// For requests that are well formed but break busines logic (like trying to overpay)
+export const unprocessable = (code: string, message: string, details?: Record<string, unknown>) =>
+  new ApiError(422, code, message, details);

@@ -40,6 +40,19 @@ services:
       db:
         condition: service_healthy
 
+  # AI made service
+  test:
+    build:
+      context: .
+      target: api
+    profiles: [test]
+    command: ["npm", "test"]
+    environment:
+      TEST_DATABASE_URL: postgres://ledger:ledger@db:5432/ledger_test
+    depends_on:
+      db:
+        condition: service_healthy
+
   app-blue:
     <<: *app
     environment:

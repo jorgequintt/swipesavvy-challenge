@@ -4,6 +4,7 @@ WORKDIR /app
 COPY backend/package*.json ./
 RUN npm ci
 COPY backend/ .
+COPY db/migrations /db/migrations
 RUN npm run build
 
 # runtine stage - only release files

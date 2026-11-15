@@ -1,9 +1,13 @@
+x-db-url: &db-url postgres://ledger:ledger@db:5432/ledger
+
 x-app: &app
   build: .
   restart: unless-stopped
   depends_on:
     db:
       condition: service_healthy
+    migrate:
+      condition: service_completed_successfully
   healthcheck:
     test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/healthz"]
     interval: 2s
@@ -22,22 +26,31 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ledged -d ledger"]
+      test: ["CMD-SHELL", "pg_isready -U ledger -d ledger"]
       interval: 2s
       timeout: 3s
       retries: 20
 
+  migrate:
+    build: .
+    command: ["node", "dist/migrate-cli.js"]
+    environment:
+      DATABASE_URL: *db-url
+    depends_on:
+      db:
+        condition: service_healthy
+
   app-blue:
     <<: *app
     environment:
-      DATABASE_URL: postgres://ledger:ledger@db:5432/ledger
+      DATABASE_URL: *db-url
       SERVER_COLOR: blue
       APP_VERSION: v1
 
   app-green:
     <<: *app
     environment:
-      DATABASE_URL: postgres://ledger:ledger@db:5432/ledger
+      DATABASE_URL: *db-url
       SERVER_COLOR: green
       APP_VERSION: v1
 

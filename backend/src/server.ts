@@ -5,7 +5,7 @@ function requireEnv(name: string) {
   const value = process.env[name];
   if(!value) {
     console.error('Env variable by name ' + name + ' not set.')
-    process.exit();
+    process.exit(1);
   }
   return value;
 }

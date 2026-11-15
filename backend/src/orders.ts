@@ -49,7 +49,7 @@ export async function getOrderView(db: Db, id: string) {
   const {
     rows: [order],
   } = await db.query<OrderRow>(
-    'SELECT id, total_cents, paid_cents, currency, created_at FROM order WHERE id = $1',
+    'SELECT id, total_cents, paid_cents, currency, created_at FROM orders WHERE id = $1',
     [id],
   );
 
@@ -61,7 +61,7 @@ export async function getOrderView(db: Db, id: string) {
   );
 
   const { rows: refunds } = await db.query<RefundRow>(
-    `SELECT id, payment_id, amount_cents, status, failure_reason, created_at, FROM refunds WHERE order_id = $1 ORDER BY created_at, id`,
+    `SELECT id, payment_id, amount_cents, status, failure_reason, created_at FROM refunds WHERE order_id = $1 ORDER BY created_at, id`,
     [id],
   );
 

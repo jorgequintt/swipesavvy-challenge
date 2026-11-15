@@ -29,7 +29,7 @@ export function createApp({ pool, color, version }: AppConfig) {
   api.get('/version', (req, res) => {
     res.json({ color, version });
   });
-  api.use('/orders', ordersRouter);
+  api.use('/orders', ordersRouter(pool));
   api.use((req, res) => {
     res.status(404).json({
       error: {
@@ -43,7 +43,7 @@ export function createApp({ pool, color, version }: AppConfig) {
   const onError: ErrorRequestHandler = (err, req, res, next) => {
     if (err instanceof ApiError) {
       res.status(err.status).json({
-        error: { code: err.code, message: err.message },
+        error: { code: err.code, message: err.message, details: err.details },
       });
       return;
     }

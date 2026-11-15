@@ -1,0 +1,57 @@
+x-app: &app
+  build: .
+  restart: unless-stopped
+  depends_on:
+    db:
+      condition: service_healthy
+  healthcheck:
+    test: ["CMD", "wget", "-q0-" "http://127.0.0.1:3000/healthz"]
+    interval: 2s
+    timeout: 2s
+    retries: 15
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ledger
+      POSTGRES_PASSWORD: ledger
+      POSTGRES_DB: ledger
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledged -d ledger"]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+
+  app-blue:
+    <<: *app
+    environment:
+      DATABASE_URL: postgres://ledger:ledger@db:5432/ledger
+      SERVER_COLOR: blue
+      APP_VERSION: v1
+
+  app-green:
+    <<: *app
+    environment:
+      DATABASE_URL: postgres://ledger:ledger@db:5432/ledger
+      SERVER_COLOR: green
+      APP_VERSION: v1
+
+  proxy:
+    image: nginx:1.27-alpine
+    ports:
+      - "8088:80"
+    volumes:
+      - ./proxy:/etc/nginx/conf.d
+    depends_on:
+      app-blue:
+        condition: service_healthy
+      app-green:
+        condition: service_healthy
+
+volumes:
+  pgdata:

@@ -1,1 +1,4 @@
 node_modules
+dist
+proxy/active/*.bak
+proxy/active/*.tmp

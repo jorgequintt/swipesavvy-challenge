@@ -5,6 +5,7 @@ import { ApiError } from './errors.js';
 import { paymentsRouter } from './routes/payments.js';
 import { Gateway } from './gateway.js';
 import { PaymentHooks } from './payments.js';
+import { refundsRouter } from './routes/refunds.js';
 
 export interface AppConfig {
   pool: pg.Pool;
@@ -36,6 +37,7 @@ export function createApp({ pool, color, version, gateway, paymentHooks }: AppCo
   });
   api.use('/orders', ordersRouter(pool));
   api.use('/orders/:orderId/payments', paymentsRouter(pool, gateway, paymentHooks))
+  api.use('/orders/:orderId/refunds', refundsRouter(pool, gateway, paymentHooks))
   api.use((req, res) => {
     res.status(404).json({
       error: {

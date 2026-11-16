@@ -2,7 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { createOrder, expectCountersMatchLedger, pay, resetDb, setupTestApp } from './helpers.js';
+import { createOrder, expectCountersMatchLedger, pay, refund, resetDb, setupTestApp } from './helpers.js';
 
 const { pool, app, gateway, hooks } = setupTestApp();
 const N = 10;
@@ -68,6 +68,67 @@ describe('concurrent payments on one order', () => {
     const ids = new Set(responses.map((r) => r.body.payment.id));
     expect(ids.size).toBe(1);
     expect(gateway.chargeCount).toBe(before + 1);
+    await expectCountersMatchLedger(pool, orderId);
+  });
+});
+
+// REFUNDS
+
+describe('concurrent refunds on one payment', () => {
+  // A 5000 card payment, fully captured.
+  async function capturedPayment() {
+    const orderId = await createOrder(app, 5000);
+    const res = await pay(app, orderId, { tender: 'card', amount_cents: 5000 });
+    expect(res.status).toBe(201);
+    return { orderId, paymentId: res.body.payment.id as string };
+  }
+
+  it(`${N} parallel refunds that would each fit alone: exactly one wins`, async () => {
+    const { orderId, paymentId } = await capturedPayment();
+
+    const responses = await Promise.all(
+      Array.from({ length: N }, () => refund(app, orderId, { payment_id: paymentId, amount_cents: 3000 })),
+    );
+
+    expect(countStatuses(responses)).toEqual({ 201: 1, 422: N - 1 });
+    for (const r of responses.filter((r) => r.status === 422)) expect(r.body.error.code).toBe('OVER_REFUND');
+    const order = await request(app).get(`/api/orders/${orderId}`);
+    expect(order.body.payments[0]).toMatchObject({ refunded_cents: 3000, refundable_cents: 2000 });
+    await expectCountersMatchLedger(pool, orderId);
+  });
+
+  it(`${N} parallel refunds of 20%: exactly five fit, refunded lands exactly on the captured amount`, async () => {
+    const { orderId, paymentId } = await capturedPayment();
+
+    const responses = await Promise.all(
+      Array.from({ length: N }, () => refund(app, orderId, { payment_id: paymentId, amount_cents: 1000 })),
+    );
+
+    expect(countStatuses(responses)).toEqual({ 201: 5, 422: 5 });
+    for (const r of responses.filter((r) => r.status === 422)) expect(r.body.error.code).toBe('OVER_REFUND');
+    const order = await request(app).get(`/api/orders/${orderId}`);
+    expect(order.body).toMatchObject({ paid_cents: 0, outstanding_cents: 5000 });
+    expect(order.body.payments[0]).toMatchObject({ refunded_cents: 5000, refundable_cents: 0 });
+    await expectCountersMatchLedger(pool, orderId);
+  });
+
+  it('payments and refunds racing on the same order never break the invariants or deadlock', async () => {
+    const { orderId, paymentId } = await capturedPayment();
+
+    const responses = await Promise.all(
+      Array.from({ length: N }, (_, i) =>
+        i % 2
+          ? refund(app, orderId, { payment_id: paymentId, amount_cents: 1000 })
+          : pay(app, orderId, { tender: 'cash', amount_cents: 1000 }),
+      ),
+    );
+
+    // Which ones fit depends on arrival order; what matters is that every response
+    // is a clean success or a clean rule rejection, never a 500 or a lock error.
+    for (const r of responses) expect([201, 422]).toContain(r.status);
+    const order = await request(app).get(`/api/orders/${orderId}`);
+    expect(order.body.paid_cents).toBeGreaterThanOrEqual(0);
+    expect(order.body.paid_cents).toBeLessThanOrEqual(5000);
     await expectCountersMatchLedger(pool, orderId);
   });
 });

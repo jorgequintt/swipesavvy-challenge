@@ -46,9 +46,23 @@ export async function pay(
     .send(body);
 }
 
+export async function refund(
+  app: App,
+  orderId: string,
+  body: Record<string, unknown>,
+  key: string = randomUUID(),
+) {
+  return request(app)
+    .post(`/api/orders/${orderId}/refunds`)
+    .set('Idempotency-Key', key)
+    .send(body);
+}
+
 // AI MADE
 export async function expectCountersMatchLedger(pool: pg.Pool, orderId: string) {
-  const { rows: [r] } = await pool.query(
+  const {
+    rows: [r],
+  } = await pool.query(
     `SELECT o.paid_cents::bigint AS counter,
             (SELECT COALESCE(SUM(amount_cents), 0) FROM payments
               WHERE order_id = o.id AND status IN ('pending', 'captured'))
@@ -58,4 +72,16 @@ export async function expectCountersMatchLedger(pool: pg.Pool, orderId: string) 
     [orderId],
   );
   expect(Number(r.counter)).toBe(Number(r.ledger));
+  
+  const { rows: drift } = await pool.query(
+    `SELECT p.id, p.refunded_cents,
+            (SELECT COALESCE(SUM(amount_cents), 0) FROM refunds
+              WHERE payment_id = p.id AND status IN ('pending', 'succeeded')) AS ledger
+       FROM payments p
+      WHERE p.order_id = $1
+        AND p.refunded_cents <> (SELECT COALESCE(SUM(amount_cents), 0) FROM refunds
+                                  WHERE payment_id = p.id AND status IN ('pending', 'succeeded'))`,
+    [orderId],
+  );
+  expect(drift).toEqual([]);
 }

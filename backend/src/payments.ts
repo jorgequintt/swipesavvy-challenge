@@ -128,7 +128,7 @@ async function settleWithGateway(
         'GATEWAY_TIMEOUT',
         'The card gateway did not answer. Retry with the same Idempotency-Key.',
         {
-          payment: payment.id,
+          payment_id: payment.id,
         },
       );
     }

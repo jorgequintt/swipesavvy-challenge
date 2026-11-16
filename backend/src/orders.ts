@@ -27,11 +27,15 @@ export interface PaymentRow {
   request_hash: string;
 }
 
-interface RefundRow {
+export interface RefundRow {
   id: string;
   payment_id: string;
+  order_id: string;
   amount_cents: string; // string because it's what pg returns for bigint
   status: 'pending' | 'succeeded' | 'failed';
+  idempotency_key: string;
+  request_hash: string;
+  gateway_ref: string | null;
   failure_reason: string | null;
   created_at: Date;
 }
@@ -65,7 +69,7 @@ export async function getOrderView(db: Db, id: string) {
   );
 
   const { rows: refunds } = await db.query<RefundRow>(
-    `SELECT id, payment_id, amount_cents, status, failure_reason, created_at FROM refunds WHERE order_id = $1 ORDER BY created_at, id`,
+    `SELECT * FROM refunds WHERE order_id = $1 ORDER BY created_at, id`,
     [id],
   );
 
@@ -85,15 +89,8 @@ export async function getOrderView(db: Db, id: string) {
     outstanding_cents: total - paid,
     status: orderStatus(total, paid, pending),
     created_at: order.created_at,
-    payments,
-    refunds: refunds.map((r) => ({
-      id: r.id,
-      payment_id: r.payment_id,
-      amount_cents: centsFromDb(r.amount_cents),
-      status: r.status,
-      failure_reason: r.failure_reason,
-      created_at: r.created_at,
-    })),
+    payments: paymentViews,
+    refunds: refunds.map((r) => toRefundView(r)),
   };
 }
 
@@ -136,3 +133,17 @@ export function toPaymentView(p: PaymentRow) {
 }
 
 export type PaymentView = ReturnType<typeof toPaymentView>;
+
+export function toRefundView(r: RefundRow) {
+  return {
+    id: r.id,
+    payment_id: r.payment_id,
+    amount_cents: centsFromDb(r.amount_cents),
+    status: r.status,
+    gateway_ref: r.gateway_ref,
+    failure_reason: r.failure_reason,
+    created_at: r.created_at,
+  };
+}
+
+export type RefundView = ReturnType<typeof toRefundView>;

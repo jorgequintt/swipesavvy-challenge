@@ -17,7 +17,11 @@ const version = process.env.APP_VERSION ?? 'dev';
 const port = Number(process.env.PORT ?? 3000);
 
 const gateway = new FakeGateway(Number(process.env.GATEWAY_LATENCY_MS ?? 300));
-const server = createApp({ pool, color, version, gateway }).listen(port, '0.0.0.0', () => {
+// Set in the Docker image, where the built frontend sits next to the server.
+// Unset in local dev: Vite serves the UI and proxies /api here.
+const staticDir = process.env.STATIC_DIR;
+
+const server = createApp({ pool, color, version, gateway, staticDir }).listen(port, '0.0.0.0', () => {
   console.log(`[${color}] ${version} listening on port ${port}`);
 })
 

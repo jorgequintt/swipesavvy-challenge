@@ -22,7 +22,8 @@ if ! docker compose exec -T "app-$TARGET" wget -qO- http://127.0.0.1:3000/health
 fi
 
 cp "$CONF" "$CONF.bak"
-echo "server app-$TARGET:3000;" > "$CONF.tmp"
+# "resolve": keep following the container if it is recreated with a new IP.
+echo "server app-$TARGET:3000 resolve;" > "$CONF.tmp"
 mv "$CONF.tmp" "$CONF"
 
 if ! docker compose exec -T proxy nginx -t -q; then

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import express, { type ErrorRequestHandler } from 'express';
 import type pg from 'pg';
 import { ordersRouter } from './routes/orders.js';
@@ -13,9 +14,10 @@ export interface AppConfig {
   version: string;
   gateway: Gateway;
   paymentHooks?: PaymentHooks; // For tests
+  staticDir?: string; // built frontend; served at / when set
 }
 
-export function createApp({ pool, color, version, gateway, paymentHooks }: AppConfig) {
+export function createApp({ pool, color, version, gateway, paymentHooks, staticDir }: AppConfig) {
   const app = express();
   app.use(express.json());
 
@@ -48,6 +50,27 @@ export function createApp({ pool, color, version, gateway, paymentHooks }: AppCo
   });
   app.use('/api', api);
 
+  if (staticDir) {
+    // Vite fingerprints asset filenames (index-BmO14tDo.js), so they can be cached
+    // forever. index.html must not be cached: it's what points at the current assets,
+    // and after a blue/green flip the browser should pick up the new ones.
+    app.use(
+      express.static(staticDir, {
+        index: false,
+        setHeaders: (res, filePath) => {
+          if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+            res.set('Cache-Control', 'public, max-age=31536000, immutable');
+          }
+        },
+      }),
+    );
+    // Any other GET is a client-side route like /orders/<id>: serve the app shell
+    // and let the frontend read the path. (/api/* never gets here: it 404s above.)
+    app.get('/{*path}', (req, res) => {
+      res.set('Cache-Control', 'no-cache').sendFile(path.join(staticDir, 'index.html'));
+    });
+  }
+
   const onError: ErrorRequestHandler = (err, req, res, next) => {
     if (err instanceof ApiError) {
       res.status(err.status).json({
@@ -58,8 +81,9 @@ export function createApp({ pool, color, version, gateway, paymentHooks }: AppCo
 
     if (err.type === 'entity.parse.failed') {
       res.status(400).json({
-        error: { code: 'INVALID_JSON', message: 'Reques body is not a valid JSON' },
+        error: { code: 'INVALID_JSON', message: 'Request body is not valid JSON' },
       });
+      return;
     }
 
     // Handle CHECK constraint violation from db
@@ -73,6 +97,7 @@ export function createApp({ pool, color, version, gateway, paymentHooks }: AppCo
             details: { constraint: err.constraint },
           },
         });
+      return;
     }
 
     // lock_timeout triggered. The order stayed locked by another request for too long

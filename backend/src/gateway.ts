@@ -19,7 +19,8 @@ export class GatewayDeclined extends Error {}
 
 export class GatewayTimeout extends Error {}
 
-type FailureMode = 'decline' | 'timeout' | 'lost-response';
+export const FAILURE_MODES = ['decline', 'timeout', 'lost-response'] as const;
+export type FailureMode = (typeof FAILURE_MODES)[number];
 
 export class FakeGateway implements Gateway {
   private charges = new Map<string, { ref: string; amountCents: number }>();
@@ -41,6 +42,11 @@ export class FakeGateway implements Gateway {
 
   get refundCount() {
     return this.refunds.size;
+  }
+
+  // Failures waiting for the next gateway calls, in order.
+  get queued(): readonly FailureMode[] {
+    return [...this.queuedFailures];
   }
 
   async charge({

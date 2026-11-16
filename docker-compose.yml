@@ -59,6 +59,7 @@ services:
       DATABASE_URL: *db-url
       SERVER_COLOR: blue
       APP_VERSION: ${BLUE_VERSION:-v1}
+      DEV_TOOLS: ${DEV_TOOLS:-1} 
 
   app-green:
     <<: *app
@@ -66,6 +67,7 @@ services:
       DATABASE_URL: *db-url
       SERVER_COLOR: green
       APP_VERSION: ${GREEN_VERSION:-v1}
+      DEV_TOOLS: ${DEV_TOOLS:-1} 
 
   proxy:
     image: nginx:1.27-alpine

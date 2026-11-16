@@ -4,9 +4,10 @@ import type pg from 'pg';
 import { ordersRouter } from './routes/orders.js';
 import { ApiError } from './errors.js';
 import { paymentsRouter } from './routes/payments.js';
-import { Gateway } from './gateway.js';
+import { FakeGateway, Gateway } from './gateway.js';
 import { PaymentHooks } from './payments.js';
 import { refundsRouter } from './routes/refunds.js';
+import { devRouter } from './routes/dev.js';
 
 export interface AppConfig {
   pool: pg.Pool;
@@ -15,9 +16,10 @@ export interface AppConfig {
   gateway: Gateway;
   paymentHooks?: PaymentHooks; // For tests
   staticDir?: string; // built frontend; served at / when set
+  devGateway?: FakeGateway; // set only when DEV_TOOLS=1: enables /api/dev
 }
 
-export function createApp({ pool, color, version, gateway, paymentHooks, staticDir }: AppConfig) {
+export function createApp({ pool, color, version, gateway, paymentHooks, staticDir, devGateway }: AppConfig) {
   const app = express();
   app.use(express.json());
 
@@ -40,6 +42,7 @@ export function createApp({ pool, color, version, gateway, paymentHooks, staticD
   api.use('/orders', ordersRouter(pool));
   api.use('/orders/:orderId/payments', paymentsRouter(pool, gateway, paymentHooks))
   api.use('/orders/:orderId/refunds', refundsRouter(pool, gateway, paymentHooks))
+  if (devGateway) api.use('/dev', devRouter(devGateway));
   api.use((req, res) => {
     res.status(404).json({
       error: {

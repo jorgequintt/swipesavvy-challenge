@@ -42,7 +42,7 @@ both apps pass their health check (`GET /healthz`, which checks the database).
 docker compose run --rm --build test
 ```
 
-This builds the backend's build stage and runs **82 tests** against a separate
+This builds the backend's build stage and runs **85 tests** against a separate
 `ledger_test` database in the same Postgres. The test database is created and migrated
 automatically.
 
@@ -54,11 +54,36 @@ automatically.
 | `refunds.test.ts` | partial/full refunds, cash vs card, tender swap, over-refund, refunding failed/pending/foreign payments, declines, replay, pending refunds, lost response |
 | `concurrency.test.ts` | **N = 10 parallel payments** on one order (exactly one wins / exactly five fit), 10 parallel retries with one key, 10 parallel refunds on one payment, payments and refunds racing |
 | `static.test.ts` | serving the frontend, SPA fallback, cache headers, API 404s stay JSON |
+| `dev.test.ts` | the test-tools endpoint: absent unless enabled, queues gateway failures |
 
 The concurrency tests are checked to **fail if the row lock is removed** (see
 [DECISIONS.md](docs/DECISIONS.md#1-two-payments-at-the-same-instant-overpay)).
 
 Locally, with the stack's `db` running: `cd backend && npm install && npm test`.
+
+### Probe it from the UI
+
+The local stack runs with `DEV_TOOLS=1`, which adds a **Test tools** panel under every
+order (and the `/api/dev/gateway` endpoints behind it). It acts on the fake gateway of
+whichever color is serving.
+
+- **Fake gateway:** live charge/refund counters, and buttons that make the *next* card
+  charge or refund **decline**, **time out** (nothing charged) or **lose its response**
+  (charged, but the answer never arrives). Try: *Lose response next* → charge a card →
+  it stays *pending* with a Retry button → Retry → captured, and the charge counter went up
+  by exactly **one**.
+- **Race payments:** fire N payments at the same instant. With the default amount (60% of
+  what's outstanding) exactly one succeeds and the rest get `422 OVERPAY`. Tick *same
+  Idempotency-Key* to simulate a retry storm: all succeed, but only **one** payment is recorded.
+- **Race refunds:** fire N refunds at one tender: only what fits succeeds, the rest get
+  `422 OVER_REFUND`.
+
+Browsers send at most ~6 requests at once to one host, so the HTTP-level races are
+gentler than in `concurrency.test.ts`, which also widens the race window with a test
+hook. The panel shows the behaviour; the tests prove it.
+
+Injecting payment failures is for demos only: production would run without `DEV_TOOLS`,
+and then the panel and the endpoints don't exist.
 
 ---
 

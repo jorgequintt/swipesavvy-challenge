@@ -38,6 +38,15 @@ export interface Order {
   refunds: Refund[];
 }
 
+export type FailureMode = 'decline' | 'timeout' | 'lost-response';
+
+// The fake gateway inside the serving app (only available when DEV_TOOLS=1).
+export interface GatewayState {
+  charges: number;
+  refunds: number;
+  queued: FailureMode[];
+}
+
 export interface Version {
   color: string;
   version: string;
@@ -86,6 +95,8 @@ export const api = {
       { tender, amount_cents: amountCents },
       { 'Idempotency-Key': idempotencyKey },
     ),
+  devGateway: () => request<GatewayState>('GET', '/api/dev/gateway'),
+  devFailNext: (mode: FailureMode) => request<GatewayState>('POST', '/api/dev/gateway/fail-next', { mode }),
   refund: (orderId: string, paymentId: string, amountCents: number, idempotencyKey: string) =>
     request<{ refund: Refund; order: Order }>(
       'POST',

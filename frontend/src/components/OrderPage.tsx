@@ -5,6 +5,7 @@ import { History } from './History';
 import { OrderSummary } from './OrderSummary';
 import { TenderForm } from './TenderForm';
 import { TenderList } from './TenderList';
+import { TestTools } from './TestTools';
 
 export function OrderPage({ orderId, onBack }: { orderId: string; onBack: () => void }) {
   const load = useCallback(() => api.getOrder(orderId), [orderId]);
@@ -43,6 +44,8 @@ export function OrderPage({ orderId, onBack }: { orderId: string; onBack: () => 
           <History order={order} />
         </div>
       </div>
+
+      <TestTools order={order} />
     </div>
   );
 }

@@ -21,8 +21,11 @@ const gateway = new FakeGateway(Number(process.env.GATEWAY_LATENCY_MS ?? 300));
 // Unset in local dev: Vite serves the UI and proxies /api here.
 const staticDir = process.env.STATIC_DIR;
 
-const server = createApp({ pool, color, version, gateway, staticDir }).listen(port, '0.0.0.0', () => {
-  console.log(`[${color}] ${version} listening on port ${port}`);
+// Test tools (inject gateway failures from the UI). Never enable in production.
+const devGateway = process.env.DEV_TOOLS === '1' ? gateway : undefined;
+
+const server = createApp({ pool, color, version, gateway, staticDir, devGateway }).listen(port, '0.0.0.0', () => {
+  console.log(`[${color}] ${version} listening on port ${port}${devGateway ? ' (DEV_TOOLS on)' : ''}`);
 })
 
 function shutdown(signal:string) {

@@ -229,5 +229,8 @@ exec form `CMD ["node", …]` so node actually receives the signal.
 - **Cash overtender** (customer hands over $50 for $42) is rejected rather than recorded
   with `change_due`.
 - **A fully refunded order shows `open`**; a derived `refunded` status would be clearer.
-- **No auth, no frontend unit tests**, and gateway failures can only be triggered from the
-  test suite, not the UI.
+- **No auth and no frontend unit tests.** Gateway failures and concurrent requests can be
+  triggered from the UI through a `DEV_TOOLS`-only test panel; that switch must stay off
+  in production.
+- **Database credentials should not be stored as plain text** in the Docker compose file.
+  They are added into the file for convenience.

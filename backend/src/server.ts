@@ -31,6 +31,7 @@ function shutdown(signal:string) {
     await pool.end();
     process.exit(0);
   });
+  setTimeout(() => process.exit(1), 10_000).unref();
 }
 
 process.on('SIGTERM', () => shutdown('SIGTERM'));

@@ -33,7 +33,7 @@ export function App() {
     <>
       <header className="topbar">
         <button type="button" className="brand" onClick={() => go(null)}>
-          Split-Tender Ledger
+          SplitTender Ledger
         </button>
         <ColorBadge onChange={onColorChange} />
       </header>

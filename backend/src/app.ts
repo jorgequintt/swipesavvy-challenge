@@ -50,6 +50,7 @@ export function createApp({ pool, color, version, gateway, paymentHooks, staticD
   });
   app.use('/api', api);
 
+  // AI MADE
   if (staticDir) {
     // Vite fingerprints asset filenames (index-BmO14tDo.js), so they can be cached
     // forever. index.html must not be cached: it's what points at the current assets,
